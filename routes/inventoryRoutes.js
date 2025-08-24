@@ -50,10 +50,17 @@ router.post('/update',async (req, res) => {
     const items = req.body.items;
 
     for (const item of items) {
+        const q=await Inventory.findOne({itemId:item.itemId});
+        console.log(q);
+        const q1=q.quantity;
+        const p1=q.price;
+        const temp=p1/q1;
+        console.log(q1,p1,temp);
         await Inventory.updateOne(
             { itemId: item.itemId },
             {
                 $inc: { quantity: -item.quantity ,
+                    price:-(temp)*item.quantity,
                     totalSellingPrice: item.givenPrice * item.quantity
                 }
             }
