@@ -7,6 +7,8 @@ const billRoutes = require('./routes/billRoute');
 const inventoryRoutes=require('./routes/inventoryRoutes');
 const hsnRoutes=require('./routes/hsnRoutes');
 const companyRoutes=require('./routes/companyRoutes');
+const customerRoutes=require('./routes/customerRoutes');
+const analyticsRoutes=require('./routes/analyticsRoutes')
 const app = express();
 
 app.use(cors());
@@ -16,6 +18,8 @@ app.use('/api/bill', billRoutes);
 app.use('/inventory', inventoryRoutes);
 app.use('/hsn',hsnRoutes );
 app.use('/company',companyRoutes );
+app.use('/customer',customerRoutes );
+app.use('/analytics',analyticsRoutes );
 // app.use('/bills', express.static('bills')); // serve generated bills
 
 mongoose.connect(process.env.MONGO_URI)

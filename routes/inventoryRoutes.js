@@ -67,6 +67,8 @@ router.post('/update',async (req, res) => {
         );
     }
 
+    res.status(200).json({ message: 'Inventory updated successfully' });
+
 })
 
 module.exports = router;

@@ -1,30 +1,31 @@
-// routes/billRoutes.js
 const express = require('express');
-const router = express.Router();
 const Bill = require('../models/Bill');
-const qrcode = require('qrcode');
-const generatePDF = require('../utils/generatePdf');
-// const sendWhatsApp = require('../utils/sendWhatsApp');
-const uploadToCloudinary = require('../utils/uploadToCloudinary');
+const router = express.Router();
 
-router.post('/generate', async (req, res) => {
+router.post('/addBill', async (req, res) => {
   try {
-    const data = req.body;
-    data.totalAmount = data.items.reduce((sum, item) => sum + item.givenPrice * item.quantity, 0);
+    const data = req.body; 
+    const newBill = new Bill({
+      billId: data.billId,
+      billAddress: data.custAdd,
+      shippingAddress: data.shipAdd,
+      customerPhone: data.phoneno,
+      customerGST: data.custGSTIN,
+      items: data.tableData.map(item => ({
+        itemId: item.itemId,
+        givenPrice: item.unitPrice,
+        quantity: item.selectedQuantity
+      })),
+      totalAmount: data.totalPrice,
+      createdAt: data.billDate ? new Date(data.billDate) : undefined
+    });
 
-    const bill = new Bill(data);
-    await bill.save();
+    await newBill.save();
 
-    const qrData = await qrcode.toDataURL(`Pay: ₹${data.totalAmount}`);
-    const pdfPath = await generatePDF(bill, qrData);
-    // console.log(pdfPath);
-    // const mediaUrl = await uploadToCloudinary(pdfPath);
-    // await sendWhatsApp(data.customerPhone, pdfPath);
-
-    res.json({ success: true, qr: qrData });
+    res.json({ status: 'success', message: 'Bill saved successfully!', billId: newBill.billId });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ status: 'error', message: err.message });
   }
 });
 
