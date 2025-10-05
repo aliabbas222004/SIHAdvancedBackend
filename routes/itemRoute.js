@@ -78,7 +78,7 @@ router.get('/search', async (req, res) => {
     },
     {
       $addFields: {
-        availableQuantity: { $ifNull: [{ $arrayElemAt: ["$inventory.quantity", 0] }, 0] }
+        quantityInStock: { $ifNull: [{ $arrayElemAt: ["$inventory.quantityInStock", 0] }, 0] }
       }
     },
     {

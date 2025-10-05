@@ -13,7 +13,7 @@ router.post('/addBill', async (req, res) => {
       customerGST: data.custGSTIN,
       items: data.tableData.map(item => ({
         itemId: item.itemId,
-        intialPrice:item.intialPrice,
+        initialPrice:item.initialPrice,
         finalPrice: item.finalPrice,
         quantity: item.selectedQuantity
       })),

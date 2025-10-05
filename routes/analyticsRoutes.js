@@ -1,5 +1,6 @@
 const express = require('express');
 const Bill = require('../models/Bill');
+const Inventory = require('../models/Inventory');
 const router = express.Router();
 
 router.get('/sales', async (req, res) => {
@@ -27,7 +28,7 @@ router.get('/sales', async (req, res) => {
           _id: "$items.itemId",
           totalQuantity: { $sum: "$items.quantity" },
           totalRevenue: {
-            $sum: { $multiply: ["$items.quantity", "$items.givenPrice"] }
+            $sum: { $multiply: ["$items.quantity", "$items.initialPrice"] }
           }
         }
       },
@@ -47,6 +48,8 @@ router.get('/sales', async (req, res) => {
       },
       { $project: { _id: 0 } }
     ]);
+
+    console.log(sales[0].items)
 
     res.json(sales.length ? sales[0] : { items: [], totalQuantity: 0, totalRevenue: 0 });
   } catch (err) {
@@ -76,7 +79,7 @@ router.get('/monthly-profit', async (req, res) => {
       bill.items.forEach(item => {
         if (!soldMap[item.itemId]) soldMap[item.itemId] = { quantity: 0, revenue: 0 };
         soldMap[item.itemId].quantity += item.quantity;
-        soldMap[item.itemId].revenue += item.quantity * item.givenPrice;
+        soldMap[item.itemId].revenue += item.quantity * item.initialPrice;
       });
     });
 
@@ -105,7 +108,7 @@ router.get('/monthly-profit', async (req, res) => {
         totalCost = avgCostPerUnit * sold.quantity;
       }
 
-      const profit = sold.revenue - totalCost;
+      const profit = (sold.revenue - totalCost)/1.18;
 
       return {
         itemId,

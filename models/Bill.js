@@ -9,7 +9,7 @@ const billSchema = new mongoose.Schema({
   items: [
     {
       itemId: String,
-      intialPrice: Number,
+      initialPrice: Number,
       finalPrice:Number,
       quantity: Number,
     }
