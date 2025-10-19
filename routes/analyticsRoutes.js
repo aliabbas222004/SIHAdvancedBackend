@@ -77,9 +77,10 @@ router.get('/monthly-profit', async (req, res) => {
 
     bills.forEach(bill => {
       bill.items.forEach(item => {
-        if (!soldMap[item.itemId]) soldMap[item.itemId] = { quantity: 0, revenue: 0 };
+        if (!soldMap[item.itemId]) soldMap[item.itemId] = { quantity: 0, revenue: 0,actualRevenue:0 };
         soldMap[item.itemId].quantity += item.quantity;
         soldMap[item.itemId].revenue += item.quantity * item.initialPrice;
+        soldMap[item.itemId].actualRevenue+=item.quantity * item.finalPrice;
       });
     });
 
@@ -107,8 +108,7 @@ router.get('/monthly-profit', async (req, res) => {
         const avgCostPerUnit = totalStockQty > 0 ? totalStockPrice / totalStockQty : 0;
         totalCost = avgCostPerUnit * sold.quantity;
       }
-
-      const profit = (sold.revenue - totalCost)/1.18;
+      const profit = ((sold.actualRevenue - totalCost)/1.18)+ (sold.revenue-sold.actualRevenue);
 
       return {
         itemId,
