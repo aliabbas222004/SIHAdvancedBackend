@@ -126,5 +126,47 @@ router.get('/monthly-profit', async (req, res) => {
   }
 });
 
+router.get("/monthlyReport", async (req, res) => {
+  try {
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({ error: "Month & Year required" });
+    }
+
+    const m = parseInt(month);
+    const y = parseInt(year);
+
+    const startDate = new Date(y, m - 1, 1);
+    const endDate = new Date(y, m, 1);
+
+    const bills = await Bill.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: startDate,
+            $lt: endDate,
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          custName: 1,
+          customerPhone: 1,
+          customerGST: 1,
+          totalAmount: 1,
+        },
+      },
+    ]);
+
+    res.json(bills);
+
+  } catch (err) {
+    console.error("Error fetching monthly report:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 module.exports = router;

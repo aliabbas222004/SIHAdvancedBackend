@@ -107,5 +107,40 @@ router.post('/update', async (req, res) => {
   }
 });
 
+router.get('/getEntireInventory', async (req, res) => {
+  try {
+    const items = await Inventory.aggregate([
+      {
+        $match: {
+          quantityInStock: { $gt: 0 }   // ✅ Filter here
+        }
+      },
+      {
+        $lookup: {
+          from: "items",            
+          localField: "itemId",     
+          foreignField: "itemId",  
+          as: "itemData"
+        }
+      },
+      { $unwind: "$itemData" },    
+      {
+        $addFields: {
+          itemName: "$itemData.itemName",        
+          givenPrice: "$itemData.givenPrice"     
+        }
+      },
+      {
+        $project: {
+          itemData: 0  
+        }
+      }
+    ]);
+
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;

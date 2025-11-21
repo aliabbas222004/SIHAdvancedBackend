@@ -4,16 +4,22 @@ const router = express.Router();
 
 router.post('/addBill', async (req, res) => {
   try {
-    const data = req.body; 
+    const data = req.body;
     const newBill = new Bill({
       billId: data.billId,
-      billAddress: data.custAdd,
-      shippingAddress: data.shipAdd,
+      customerName: data.custName,
       customerPhone: data.phoneno,
+      billAddress: data.custAdd,
+      customerState: data.custState,
+      shippingAddress: data.shipAdd,
       customerGST: data.custGSTIN,
+      shipCustName: data.shipcustName,
+      shipCustPhone: data.shipcustPhone,
+      shipCustState: data.shipbillState,
+      shipCustGST: data.shipcustGST,
       items: data.tableData.map(item => ({
         itemId: item.itemId,
-        initialPrice:item.initialPrice,
+        initialPrice: item.initialPrice,
         finalPrice: item.finalPrice,
         quantity: item.selectedQuantity
       })),
