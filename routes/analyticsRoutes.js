@@ -152,13 +152,16 @@ router.get("/monthlyReport", async (req, res) => {
       {
         $project: {
           _id: 0,
-          custName: 1,
+          billId:1,
+          customerName: 1,
           customerPhone: 1,
           customerGST: 1,
           totalAmount: 1,
+          createdAt:1
         },
       },
     ]);
+
 
     res.json(bills);
 
