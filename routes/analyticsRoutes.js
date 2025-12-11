@@ -58,6 +58,74 @@ router.get('/sales', async (req, res) => {
 });
 
 
+// router.get('/monthly-profit', async (req, res) => {
+//   try {
+//     const { month, year } = req.query;
+
+//     if (!month || !year) {
+//       return res.status(400).json({ message: 'Please provide month and year' });
+//     }
+
+//     const bills = await Bill.find({
+//       createdAt: {
+//         $gte: new Date(`${year}-${month}-01`),
+//         $lt: new Date(`${year}-${parseInt(month) + 1}-01`)
+//       }
+//     });
+
+//     const soldMap = {};
+
+//     bills.forEach(bill => {
+//       bill.items.forEach(item => {
+//         if (!soldMap[item.itemId]) soldMap[item.itemId] = { quantity: 0, revenue: 0,actualRevenue:0 };
+//         soldMap[item.itemId].quantity += item.quantity;
+//         soldMap[item.itemId].revenue += item.quantity * item.initialPrice;
+//         soldMap[item.itemId].actualRevenue+=item.quantity * item.finalPrice;
+//       });
+//     });
+
+//     const itemIds = Object.keys(soldMap);
+//     const inventories = await Inventory.find({ itemId: { $in: itemIds } });
+
+//     const itemWiseProfit = itemIds.map(itemId => {
+//       const sold = soldMap[itemId];
+//       const inventory = inventories.find(inv => inv.itemId === itemId);
+
+//       const monthInt = parseInt(month, 10);
+//       const yearInt = parseInt(year, 10);
+
+//       let totalCost = 0;
+
+//       if (inventory) {
+//         const monthlyPurchases = inventory.purchases.filter(p => {
+//           const d = new Date(p.date);
+//           return d.getFullYear() === yearInt && d.getMonth() + 1 === monthInt;
+//         });
+
+//         const totalStockQty = monthlyPurchases.reduce((acc, p) => acc + p.quantity, 0);
+//         const totalStockPrice = monthlyPurchases.reduce((acc, p) => acc + p.price, 0);
+
+//         const avgCostPerUnit = totalStockQty > 0 ? totalStockPrice / totalStockQty : 0;
+//         totalCost = avgCostPerUnit * sold.quantity;
+//       }
+//       const profit = ((sold.actualRevenue - totalCost)/1.18)+ (sold.revenue-sold.actualRevenue);
+
+//       return {
+//         itemId,
+//         soldQuantity: sold.quantity,
+//         revenue: sold.revenue,
+//         cost: totalCost,
+//         profit
+//       };
+//     });
+
+//     res.json(itemWiseProfit); // ✅ return only item-wise profit
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
 router.get('/monthly-profit', async (req, res) => {
   try {
     const { month, year } = req.query;
@@ -77,38 +145,56 @@ router.get('/monthly-profit', async (req, res) => {
 
     bills.forEach(bill => {
       bill.items.forEach(item => {
-        if (!soldMap[item.itemId]) soldMap[item.itemId] = { quantity: 0, revenue: 0,actualRevenue:0 };
+        if (!soldMap[item.itemId])
+          soldMap[item.itemId] = { quantity: 0, revenue: 0, actualRevenue: 0 };
+
         soldMap[item.itemId].quantity += item.quantity;
         soldMap[item.itemId].revenue += item.quantity * item.initialPrice;
-        soldMap[item.itemId].actualRevenue+=item.quantity * item.finalPrice;
+        soldMap[item.itemId].actualRevenue += item.quantity * item.finalPrice;
       });
     });
 
     const itemIds = Object.keys(soldMap);
+
     const inventories = await Inventory.find({ itemId: { $in: itemIds } });
+
 
     const itemWiseProfit = itemIds.map(itemId => {
       const sold = soldMap[itemId];
       const inventory = inventories.find(inv => inv.itemId === itemId);
 
-      const monthInt = parseInt(month, 10);
-      const yearInt = parseInt(year, 10);
-
       let totalCost = 0;
 
       if (inventory) {
-        const monthlyPurchases = inventory.purchases.filter(p => {
-          const d = new Date(p.date);
-          return d.getFullYear() === yearInt && d.getMonth() + 1 === monthInt;
-        });
+        // SORT PURCHASES → latest first
+        const sortedPurchases = [...inventory.purchases].sort(
+          (a, b) => new Date(b.date) - new Date(a.date)
+        );
 
-        const totalStockQty = monthlyPurchases.reduce((acc, p) => acc + p.quantity, 0);
-        const totalStockPrice = monthlyPurchases.reduce((acc, p) => acc + p.price, 0);
+        let remainingQty = sold.quantity;
 
-        const avgCostPerUnit = totalStockQty > 0 ? totalStockPrice / totalStockQty : 0;
-        totalCost = avgCostPerUnit * sold.quantity;
+        for (const p of sortedPurchases) {
+          if (remainingQty <= 0) break;
+
+          const usedQty = Math.min(remainingQty, p.quantity);
+
+          // cost is for ENTIRE purchase => per-unit cost derived like this
+          const perUnitCost = p.price / p.quantity;
+
+          totalCost += usedQty * perUnitCost;
+
+          remainingQty -= usedQty;
+        }
+
+        if (remainingQty > 0) {
+          console.warn(`Not enough purchase history for item ${itemId}`);
+        }
       }
-      const profit = ((sold.actualRevenue - totalCost)/1.18)+ (sold.revenue-sold.actualRevenue);
+
+      // Your profit formula remains unchanged
+      const profit =
+        (sold.actualRevenue - totalCost) / 1.18 +
+        (sold.revenue - sold.actualRevenue);
 
       return {
         itemId,
@@ -119,12 +205,14 @@ router.get('/monthly-profit', async (req, res) => {
       };
     });
 
-    res.json(itemWiseProfit); // ✅ return only item-wise profit
+    res.json(itemWiseProfit);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 router.get("/monthlyReport", async (req, res) => {
   try {
