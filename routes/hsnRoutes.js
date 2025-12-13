@@ -25,6 +25,17 @@ router.post('/addHsn', async (req, res) => {
   }
 });
 
+router.get('/gstHsn', async (req, res) => {
+  try {
+    const {company,itemType}=req.query;
+    const hsn=await HsnIdentifier.find({company,itemType});
+    console.log(hsn);
+    return res.status(200).json(hsn);
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 router.get('/itemType', async (req, res) => {
   try {
     const { company } = req.query;

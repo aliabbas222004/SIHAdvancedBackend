@@ -1,6 +1,7 @@
 const express = require('express');
 const Bill = require('../models/Bill');
 const Inventory = require('../models/Inventory');
+const DirectBill = require('../models/DirectBill');
 const router = express.Router();
 
 router.get('/sales', async (req, res) => {
@@ -134,19 +135,38 @@ router.get('/monthly-profit', async (req, res) => {
       return res.status(400).json({ message: 'Please provide month and year' });
     }
 
+    // ✅ Safe date range (works for December)
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 1);
+
+    // ================= NORMAL BILLS =================
     const bills = await Bill.find({
       createdAt: {
-        $gte: new Date(`${year}-${month}-01`),
-        $lt: new Date(`${year}-${parseInt(month) + 1}-01`)
-      }
+        $gte: startDate,
+        $lt: endDate,
+      },
     });
 
+    // ================= DIRECT BILLS =================
+    const directBills = await DirectBill.find({
+      createdAt: {
+        $gte: startDate,
+        $lt: endDate,
+      },
+    });
+
+    // ================= INVENTORY BILL PROFIT =================
     const soldMap = {};
 
     bills.forEach(bill => {
       bill.items.forEach(item => {
-        if (!soldMap[item.itemId])
-          soldMap[item.itemId] = { quantity: 0, revenue: 0, actualRevenue: 0 };
+        if (!soldMap[item.itemId]) {
+          soldMap[item.itemId] = {
+            quantity: 0,
+            revenue: 0,
+            actualRevenue: 0,
+          };
+        }
 
         soldMap[item.itemId].quantity += item.quantity;
         soldMap[item.itemId].revenue += item.quantity * item.initialPrice;
@@ -155,9 +175,7 @@ router.get('/monthly-profit', async (req, res) => {
     });
 
     const itemIds = Object.keys(soldMap);
-
     const inventories = await Inventory.find({ itemId: { $in: itemIds } });
-
 
     const itemWiseProfit = itemIds.map(itemId => {
       const sold = soldMap[itemId];
@@ -166,7 +184,7 @@ router.get('/monthly-profit', async (req, res) => {
       let totalCost = 0;
 
       if (inventory) {
-        // SORT PURCHASES → latest first
+        // LIFO purchase matching
         const sortedPurchases = [...inventory.purchases].sort(
           (a, b) => new Date(b.date) - new Date(a.date)
         );
@@ -177,21 +195,13 @@ router.get('/monthly-profit', async (req, res) => {
           if (remainingQty <= 0) break;
 
           const usedQty = Math.min(remainingQty, p.quantity);
-
-          // cost is for ENTIRE purchase => per-unit cost derived like this
           const perUnitCost = p.price / p.quantity;
 
           totalCost += usedQty * perUnitCost;
-
           remainingQty -= usedQty;
-        }
-
-        if (remainingQty > 0) {
-          console.warn(`Not enough purchase history for item ${itemId}`);
         }
       }
 
-      // Your profit formula remains unchanged
       const profit =
         (sold.actualRevenue - totalCost) / 1.18 +
         (sold.revenue - sold.actualRevenue);
@@ -201,17 +211,51 @@ router.get('/monthly-profit', async (req, res) => {
         soldQuantity: sold.quantity,
         revenue: sold.revenue,
         cost: totalCost,
-        profit
+        profit,
       };
     });
 
-    res.json(itemWiseProfit);
+    // ================= DIRECT BILL ITEM MERGE =================
+    const directItemMap = {};
+
+    directBills.forEach(bill => {
+      bill.items.forEach(item => {
+        const key = item.itemName;
+
+        if (!directItemMap[key]) {
+          directItemMap[key] = {
+            itemName: item.itemName,
+            quantity: 0,
+            totalPurchase: 0,
+            totalSelling: 0,
+            profit: 0,
+          };
+        }
+
+        const qty = Number(item.quantity) || 0;
+        const purchase = Number(item.purchasePrice) || 0;
+        const selling = Number(item.sellingPrice) || 0;
+
+        directItemMap[key].quantity += qty;
+        directItemMap[key].totalPurchase += qty * purchase;
+        directItemMap[key].totalSelling += qty * selling;
+        directItemMap[key].profit += qty * (selling - purchase);
+      });
+    });
+
+    const directItems = Object.values(directItemMap);
+
+    res.json({
+      itemWiseProfit,
+      directItems,
+    });
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 router.get("/monthlyReport", async (req, res) => {
@@ -240,12 +284,12 @@ router.get("/monthlyReport", async (req, res) => {
       {
         $project: {
           _id: 0,
-          billId:1,
+          billId: 1,
           customerName: 1,
           customerPhone: 1,
           customerGST: 1,
           totalAmount: 1,
-          createdAt:1
+          createdAt: 1
         },
       },
     ]);

@@ -1,5 +1,6 @@
 const express = require('express');
 const Bill = require('../models/Bill');
+const DirectBill = require('../models/DirectBill');
 const router = express.Router();
 
 router.post('/addBill', async (req, res) => {
@@ -33,6 +34,48 @@ router.post('/addBill', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+router.post('/direct', async (req, res) => {
+  try {
+    const { customerName, items, date } = req.body;
+
+    if (!customerName || !items || items.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid data',
+      });
+    }
+
+    const formattedItems = items.map(item => ({
+      itemName: item.name,
+      purchasePrice: Number(item.purchasePrice),
+      sellingPrice: Number(item.sellingPrice),
+      quantity: Number(item.quantity), 
+    }));
+
+
+    const bill = new DirectBill({
+      customerName,
+      items: formattedItems,
+      createdAt: date ? new Date(date) : new Date(),
+    });
+
+    await bill.save();
+
+    res.json({
+      status: 'success',
+      message: 'Direct entry added successfully!',
+      billId: bill._id,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      status: 'error',
+      message: err.message,
+    });
   }
 });
 
