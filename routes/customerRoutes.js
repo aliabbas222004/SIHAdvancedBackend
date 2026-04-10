@@ -34,7 +34,7 @@ router.post('/addCustomer', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const customers = await Customer.find();
+    const customers = await Customer.find().sort({ name: 1 });
     res.json(customers);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch customers' });
@@ -63,36 +63,56 @@ router.put('/update/:id', async (req, res) => {
   }
 });
 
-router.post("/addPayment", async (req, res) => {
+router.post("/addTransaction", async (req, res) => {
   try {
-    const { phoneNo, mode, amount, date, transactionId } = req.body;
+    const { phoneNo, type, mode, amount, date, transactionId, billId } = req.body;
 
-    if (!phoneNo || !mode || !amount || !date) {
+    if (!phoneNo || !type || !amount || !date) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    let paymentRecord = await Payment.findOne({ phoneNo });
+    let record = await Payment.findOne({ phoneNo });
 
-    if (!paymentRecord) {
-      paymentRecord = new Payment({ phoneNo });
+    if (!record) {
+      record = new Payment({ phoneNo });
     }
 
-    if (mode === "cash") {
-      paymentRecord.cash.push({ amount, date });
-    } else if (mode === "gpay") {
-      paymentRecord.gpay.push({ amount, date, transactionId });
-    } else {
-      return res.status(400).json({ message: "Invalid payment mode" });
+    // ✅ PAYMENT RECEIVED (existing logic)
+    if (type === "paymentReceived") {
+      if (mode === "cash") {
+        record.cash.push({ amount, date });
+      } else if (mode === "digital") {
+        record.gpay.push({ amount, date, transactionId });
+      }
     }
 
-    await paymentRecord.save();
+    // ✅ PAYMENT DONE (NEW)
+    else if (type === "paymentDone") {
+      if (mode === "cash") {
+        record.cashGiven.push({ amount, date });
+      } else if (mode === "digital") {
+        record.gpayGiven.push({ amount, date, transactionId });
+      }
+    }
+
+    // ✅ BILL RECEIVED (NEW)
+    else if (type === "billReceived") {
+      record.billsReceived.push({ amount, date, billId });
+    }
+
+    else {
+      return res.status(400).json({ message: "Invalid type" });
+    }
+
+    await record.save();
 
     res.status(200).json({
-      message: "✅ Payment added successfully",
-      data: paymentRecord,
+      message: "✅ Transaction added successfully",
+      data: record,
     });
+
   } catch (error) {
-    console.error("❌ Error adding payment:", error);
+    console.error("❌ Error:", error);
     res.status(500).json({ message: "Server error", error });
   }
 });

@@ -25,7 +25,8 @@ router.post('/addBill', async (req, res) => {
         quantity: item.selectedQuantity
       })),
       totalAmount: data.totalPrice,
-      createdAt: data.billDate ? new Date(data.billDate) : undefined
+      createdAt: data.billDate ? new Date(data.billDate) : undefined,
+      paymentMode: data.paymentMode
     });
 
     await newBill.save();
