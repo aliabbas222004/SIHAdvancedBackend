@@ -26,7 +26,8 @@ router.post('/addBill', async (req, res) => {
       })),
       totalAmount: data.totalPrice,
       createdAt: data.billDate ? new Date(data.billDate) : undefined,
-      paymentMode: data.paymentMode
+      paymentMode: data.paymentMode,
+      freightCharge_packaging: data.freightCharge_packaging? Number(data.freightCharge_packaging) : 0
     });
 
     await newBill.save();

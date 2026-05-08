@@ -26,6 +26,7 @@ const billSchema = new mongoose.Schema({
     default: Date.now,
   },
   paymentMode: String,
+  freightCharge_packaging: Number
 });
 
 module.exports = mongoose.model('Bill', billSchema);
