@@ -22,6 +22,7 @@ app.use('/company',companyRoutes );
 app.use('/customer',customerRoutes );
 app.use('/analytics',analyticsRoutes );
 app.use('/transport',transportRoutes);
+app.use('/bypass', require('./routes/bypassRoute'));
 // app.use('/bills', express.static('bills')); // serve generated bills
 
 mongoose.connect(process.env.MONGO_URI)
