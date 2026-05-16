@@ -46,20 +46,36 @@ router.put('/update/:id', async (req, res) => {
     const { id } = req.params;
     const updatedData = req.body;
 
-    const updatedCustomer = await Customer.findByIdAndUpdate(
-      id,
-      updatedData,
-      { new: true }
-    );
+    const updatedCustomer =
+      await Customer.findByIdAndUpdate(
+        id,
+        updatedData,
+        { new: true }
+      );
 
     if (!updatedCustomer) {
-      return res.status(404).json({ message: 'Customer not found' });
+      return res.status(404).json({
+        status: "error",
+        message: "Customer not found"
+      });
     }
 
-    res.json(updatedCustomer);
+    return res.status(200).json({
+      status: "success",
+      message: "Customer updated successfully",
+      customer: updatedCustomer
+    });
+
   } catch (err) {
-    console.error('Error updating customer:', err);
-    res.status(500).json({ error: err.message });
+    console.error(
+      "Error updating customer:",
+      err
+    );
+
+    return res.status(500).json({
+      status: "error",
+      message: err.message
+    });
   }
 });
 
@@ -119,7 +135,7 @@ router.post("/addTransaction", async (req, res) => {
 
 router.get("/showLedger", async (req, res) => {
   try {
-    const { phoneNo } = req.query; 
+    const { phoneNo } = req.query;
 
     if (!phoneNo) {
       return res.status(400).json({ message: "Missing required fields: phoneNo" });
@@ -128,7 +144,7 @@ router.get("/showLedger", async (req, res) => {
     const paymentRecord = await Payment.findOne({ phoneNo });
 
     const bills = await Bill.find({ customerPhone: phoneNo })
-      .select("billId createdAt totalAmount -_id"); 
+      .select("billId createdAt totalAmount -_id");
 
     res.status(200).json({
       paymentRecord: paymentRecord || {},
