@@ -104,7 +104,9 @@ router.get('/search', async (req, res) => {
   for (const item of items) {
     // Find inventory for this item
     const inventory = await Inventory.findOne({ itemId: item.itemId }).lean();
-
+    const hsn= item.HSN;
+    const res= await HsnIdentifier.findOne({hsn});
+    const gstValue= res.gst ?? 18;
     let latestPurchase = null;
     let latestPurchasePrice = 0;
     let quantityInStock = 0;
@@ -131,6 +133,7 @@ router.get('/search', async (req, res) => {
       ...item,
       quantityInStock,
       latestPurchasePrice,
+      gstValue
     });
   }
 

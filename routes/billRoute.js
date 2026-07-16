@@ -20,10 +20,13 @@ router.post('/addBill', async (req, res) => {
       shipCustState: data.shipbillState,
       shipCustGST: data.shipcustGST,
       items: data.tableData.map(item => ({
-        itemId: item.itemId,
+        itemId: item.itemIdb,
+        HSN: item.HSN,
+        itemName: item.itemName,
         initialPrice: item.initialPrice,
         finalPrice: item.finalPrice,
-        quantity: item.selectedQuantity
+        quantity: item.selectedQuantity,
+        gstValue: item.gstValue
       })),
       totalAmount: data.totalPrice,
       createdAt: data.billDate ? new Date(data.billDate) : undefined,

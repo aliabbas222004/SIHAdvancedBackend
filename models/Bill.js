@@ -15,9 +15,12 @@ const billSchema = new mongoose.Schema({
   items: [
     {
       itemId: String,
+      HSN: String,
+      itemName: String,
       initialPrice: Number,
       finalPrice:Number,
       quantity: Number,
+      gstValue: Number
     }
   ],
   totalAmount: Number,
