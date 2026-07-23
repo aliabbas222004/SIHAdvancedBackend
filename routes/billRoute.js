@@ -20,7 +20,7 @@ router.post('/addBill', async (req, res) => {
       shipCustState: data.shipbillState,
       shipCustGST: data.shipcustGST,
       items: data.tableData.map(item => ({
-        itemId: item.itemIdb,
+        itemId: item.itemId,
         HSN: item.HSN,
         itemName: item.itemName,
         initialPrice: item.initialPrice,
