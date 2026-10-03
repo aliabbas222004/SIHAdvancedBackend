@@ -4,6 +4,10 @@ const Inventory = require('../models/Inventory');
 const DirectBill = require('../models/DirectBill');
 const router = express.Router();
 
+const {
+  generateInvoicePDF
+} = require("../utils/invoiceGenerator");
+
 router.post('/addBill', async (req, res) => {
   try {
     const data = req.body;
@@ -36,7 +40,12 @@ router.post('/addBill', async (req, res) => {
 
     await newBill.save();
 
-    res.json({ status: 'success', message: 'Bill saved successfully!', billId: newBill.billId });
+    await generateInvoicePDF(
+      res,
+      newBill,
+      data
+    );
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ status: 'error', message: err.message });
@@ -127,7 +136,7 @@ router.post('/deleteBill', async (req, res) => {
         {
           $inc: {
             quantityInStock: quantity,
-            priceOfStock: latestPrice/latestQuantity * (quantity)
+            priceOfStock: latestPrice / latestQuantity * (quantity)
           }
         },
         { new: true }
@@ -153,16 +162,234 @@ router.post('/deleteBill', async (req, res) => {
 
 router.get("/getBill/:billId", async (req, res) => {
   try {
-    const bill = await Bill.findOne({ billId: req.params.billId });
+    const bill = await Bill.findOne({
+      billId: req.params.billId
+    });
 
     if (!bill) {
-      return res.status(404).json({ message: "Bill not found" });
+      return res.status(404).json({
+        status: "error",
+        message: "Bill not found"
+      });
     }
 
-    res.json(bill);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    // Recreate the same `data` structure
+    // that was originally sent to /addBill
+    const data = {
+      billId: bill.billId,
+      billDate: bill.createdAt,
+
+      custName: bill.customerName,
+      phoneno: bill.customerPhone,
+      custAdd: bill.billAddress,
+      custState: bill.customerState,
+      custGSTIN: bill.customerGST,
+
+      shipcustName: bill.shipCustName,
+      shipcustPhone: bill.shipCustPhone,
+      shipAdd: bill.shippingAddress,
+      shipbillState: bill.shipCustState,
+      shipcustGST: bill.shipCustGST,
+
+      tableData: bill.items.map(item => ({
+        itemId: item.itemId,
+        HSN: item.HSN,
+        itemName: item.itemName,
+        initialPrice: item.initialPrice,
+        finalPrice: item.finalPrice,
+        selectedQuantity: item.quantity,
+        gstValue: item.gstValue
+      })),
+
+      totalQuantity: bill.items.reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      ),
+
+      totalPrice: bill.totalAmount,
+
+      paymentMode: bill.paymentMode,
+
+      freightCharge_packaging:
+        bill.freightCharge_packaging
+          ? Number(bill.freightCharge_packaging)
+          : 0
+    };
+
+    console.log("Regenerated Bill Data:", data);
+
+    // Same logic as /addBill
+    await generateInvoicePDF(
+      res,
+      bill,
+      data
+    );
+
+  } catch (err) {
+    console.error("Get Bill PDF Error:", err);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        status: "error",
+        message: err.message
+      });
+    }
   }
 });
+
+
+
+// router.get("/preview", async (req, res) => {
+//   try {
+//     const mockData = {
+//       billId: "INV-1001",
+//       custName: "ABC Interiors",
+//       phoneno: "9876543210",
+//       custAdd: "Vadodara, GujaratVadodara, GujaratVadodara, GujaratVadodara, GujaratVadodara, Gujarat",
+//       custState: "Gujarat",
+//       custGSTIN: "24ABCDE1234F1Z5",
+
+//       shipcustName: "ABC Interiors",
+//       shipcustPhone: "9876543210",
+//       shipbillState: "Gujarat",
+//       shipcustGST: "24ABCDE1234F1Z5",
+//       shipAdd: "Vadodara, GujaratVadodara, GujaratVadodara, GujaratVadodara, GujaratVadodara, Gujarat",
+
+//       billDate: new Date(),
+
+//       paymentMode: "Cash",
+
+//       freightCharge_packaging: 250,
+
+//       tableData: [
+//         {
+//           itemId: "ITEM001",
+//           HSN: "4411",
+//           itemName: "Premium Laminate Sheet",
+//           initialPrice: 1200,
+//           finalPrice: 1500,
+//           selectedQuantity: 2,
+//           gstValue: 18
+//         },
+//         {
+//           itemId: "ITEM002",
+//           HSN: "39250",
+//           itemName: "Charcoal Louvers",
+//           initialPrice: 800,
+//           finalPrice: 950,
+//           selectedQuantity: 3,
+//           gstValue: 18
+//         },
+//         {
+//           itemId: "ITEM003",
+//           HSN: "44129",
+//           itemName: "Commercial Plywood",
+//           initialPrice: 1800,
+//           finalPrice: 2100,
+//           selectedQuantity: 1,
+//           gstValue: 18
+//         },
+//         {
+//           itemId: "ITEM003",
+//           HSN: "44128",
+//           itemName: "Commercial Plywood",
+//           initialPrice: 1800,
+//           finalPrice: 2100,
+//           selectedQuantity: 1,
+//           gstValue: 18
+//         },
+//         {
+//           itemId: "ITEM003",
+//           HSN: "44125",
+//           itemName: "Commercial Plywood",
+//           initialPrice: 1800,
+//           finalPrice: 2100,
+//           selectedQuantity: 1,
+//           gstValue: 18
+//         },
+//         {
+//           itemId: "ITEM003",
+//           HSN: "44124",
+//           itemName: "Commercial Plywood",
+//           initialPrice: 1800,
+//           finalPrice: 2100,
+//           selectedQuantity: 1,
+//           gstValue: 18
+//         },
+//         {
+//           itemId: "ITEM003",
+//           HSN: "44129",
+//           itemName: "Commercial Plywood",
+//           initialPrice: 1800,
+//           finalPrice: 2100,
+//           selectedQuantity: 1,
+//           gstValue: 18
+//         },
+//         {
+//           itemId: "ITEM003",
+//           HSN: "44133",
+//           itemName: "Commercial Plywood",
+//           initialPrice: 1800,
+//           finalPrice: 2100,
+//           selectedQuantity: 1,
+//           gstValue: 18
+//         }
+
+//       ]
+//   };
+
+//   // Create a temporary bill-like object
+//   const bill = {
+//     billId: mockData.billId,
+//     customerName: mockData.custName,
+//     customerPhone: mockData.phoneno,
+//     billAddress: mockData.custAdd,
+//     customerState: mockData.custState,
+//     customerGST: mockData.custGSTIN,
+
+//     shipCustName: mockData.shipcustName,
+//     shipCustPhone: mockData.shipcustPhone,
+//     shipCustState: mockData.shipbillState,
+//     shipCustGST: mockData.shipcustGST,
+
+//     items: mockData.tableData.map(item => ({
+//       itemId: item.itemId,
+//       HSN: item.HSN,
+//       itemName: item.itemName,
+//       initialPrice: item.initialPrice,
+//       finalPrice: item.finalPrice,
+//       quantity: item.selectedQuantity,
+//       gstValue: item.gstValue
+//     })),
+
+//     totalAmount: mockData.tableData.reduce(
+//       (sum, item) =>
+//         sum + item.finalPrice * item.selectedQuantity,
+//       0
+//     ) + Number(mockData.freightCharge_packaging),
+
+//     createdAt: mockData.billDate,
+
+//     paymentMode: mockData.paymentMode,
+
+//     freightCharge_packaging:
+//       Number(mockData.freightCharge_packaging)
+//   };
+
+//   // IMPORTANT:
+//   // This calls your existing PDF generator
+//   await generateInvoicePDF(res, bill, mockData);
+
+// } catch (err) {
+//   console.error("Preview PDF error:", err);
+
+//   if (!res.headersSent) {
+//     res.status(500).json({
+//       message: "Failed to generate preview PDF",
+//       error: err.message
+//     });
+//   }
+// }
+// });
 
 module.exports = router;
